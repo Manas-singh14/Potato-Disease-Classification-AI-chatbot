@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PlantScan — Potato Disease Checker</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --soil:        #1E120A;
+      --soil-mid:    #2C1810;
+      --soil-light:  #4a2a18;
+      --leaf:        #2E6B28;
+      --leaf-mid:    #3D8535;
+      --leaf-light:  #52A845;
+      --blight-red:  #B83025;
+      --blight-orange: #C96820;
+      --healthy-green: #1E8449;
+      --amber:       #D4890A;
+      --cream:       #FAF8F4;
+      --cream-dark:  #F0EBE3;
+      --muted:       #7A6F66;
+      --border:      #DDD5C8;
+      --card:        #FFFFFF;
+      --shadow:      0 2px 16px rgba(44,24,16,0.08);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--cream);
+      color: var(--soil);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--soil);
+      padding: 0 40px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 30px; height: 30px;
+      background: var(--leaf-light);
+      border-radius: 50% 4px 50% 4px;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .logo-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.15rem;
+      color: #fff;
+      letter-spacing: 0.01em;
+    }
+    .header-tag {
+      margin-left: 6px;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.06);
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      letter-spacing: 0.04em;
+    }
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .api-status {
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #888;
+      transition: background 0.3s;
+    }
+    .status-dot.online  { background: #52A845; box-shadow: 0 0 6px #52A84580; }
+    .status-dot.offline { background: #B83025; }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, var(--soil) 0%, #3a1f0e 55%, #2a4a20 100%);
+      padding: 52px 40px 48px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      opacity: 0.04;
+      background-image:
+        radial-gradient(circle at 20% 50%, #52A845 0%, transparent 40%),
+        radial-gradient(circle at 80% 50%, #C96820 0%, transparent 40%);
+    }
+    .hero-content { position: relative; }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--leaf-light);
+      margin-bottom: 16px;
+    }
+    .hero h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.8rem;
+      color: #fff;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+    .hero h2 em { font-style: italic; color: var(--leaf-light); }
+    .hero-sub {
+      color: rgba(255,255,255,0.58);
+      font-size: 0.97rem;
+      max-width: 500px;
+      margin: 0 auto 24px;
+      line-height: 1.65;
+    }
+    .hero-pills {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .pill-healthy { color: #7CDA6C; border-color: rgba(124,218,108,0.3); background: rgba(124,218,108,0.08); }
+    .pill-early   { color: #F0937C; border-color: rgba(240,147,124,0.3); background: rgba(240,147,124,0.08); }
+    .pill-late    { color: #EDAB6A; border-color: rgba(237,171,106,0.3); background: rgba(237,171,106,0.08); }
+
+    /* ── MAIN GRID ── */
+    main {
+      flex: 1;
+      max-width: 920px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 36px 24px 64px;
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    /* ── CARD BASE ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 26px;
+      box-shadow: var(--shadow);
+    }
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .card-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── UPLOAD CARD ── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      background: var(--cream);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--leaf-mid);
+      background: #eef6ec;
+    }
+    .drop-zone input {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 2.2rem; margin-bottom: 10px; display: block; }
+    .drop-zone p { font-size: 0.86rem; color: var(--muted); line-height: 1.55; }
+    .drop-zone strong { color: var(--leaf); }
+
+    .preview-wrap {
+      margin-top: 14px;
+      border-radius: 12px;
+      overflow: hidden;
+      display: none;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+    .preview-wrap img {
+      width: 100%;
+      max-height: 210px;
+      object-fit: cover;
+      display: block;
+    }
+    .preview-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.5));
+      padding: 22px 12px 10px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .preview-name {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.8);
+      max-width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .remove-btn {
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 26px; height: 26px;
+      font-size: 13px; cursor: pointer;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .remove-btn:hover { background: rgba(184,48,37,0.75); }
+
+    /* error */
+    .error-box {
+      margin-top: 12px;
+      background: #fdecea;
+      border: 1px solid #f5c6c2;
+      border-left: 3px solid var(--blight-red);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.84rem;
+      color: var(--blight-red);
+      display: none;
+      line-height: 1.5;
+    }
+
+    /* analyse button */
+    .predict-btn {
+      margin-top: 14px;
+      width: 100%;
+      padding: 13px;
+      background: var(--leaf);
+      color: #fff;
+      border: none;
+      border-radius: 11px;
+      font-size: 0.93rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.01em;
+    }
+    .predict-btn:hover:not(:disabled) {
+      background: var(--leaf-mid);
+      box-shadow: 0 4px 16px rgba(46,107,40,0.3);
+    }
+    .predict-btn:active:not(:disabled) { transform: scale(0.985); }
+    .predict-btn:disabled { background: #b5c9b3; cursor: not-allowed; box-shadow: none; }
+
+    /* spinner */
+    .spinner {
+      width: 17px; height: 17px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* tips */
+    .tips {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .tip {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .tip-icon { flex-shrink: 0; font-size: 0.9rem; margin-top: 0px; }
+
+    /* ── RESULT CARD ── */
+    .empty-state {
+      text-align: center;
+      padding: 28px 10px 20px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 2.8rem; margin-bottom: 10px; }
+    .empty-state p { font-size: 0.86rem; line-height: 1.55; }
+
+    .prediction-result { display: none; }
+
+    /* diagnosis header */
+    .diag-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .diag-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .diag-icon.healthy { background: #e2f5e8; }
+    .diag-icon.early   { background: #fdecea; }
+    .diag-icon.late    { background: #fdf0e3; }
+    .diag-text .diag-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .diag-text .diag-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.22rem;
+      color: var(--soil);
+      line-height: 1.2;
+    }
+
+    /* confidence meter */
+    .conf-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .conf-number {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.6rem;
+      line-height: 1;
+      color: var(--soil);
+    }
+    .conf-number sup { font-size: 1.1rem; color: var(--muted); }
+    .conf-label { font-size: 0.78rem; color: var(--muted); }
+    .conf-track {
+      height: 5px;
+      background: var(--cream-dark);
+      border-radius: 4px;
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .conf-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+      width: 0%;
+    }
+    .conf-fill.healthy { background: var(--healthy-green); }
+    .conf-fill.early   { background: var(--blight-red); }
+    .conf-fill.late    { background: var(--blight-orange); }
+
+    /* all-class bars */
+    .section-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .bar-row { margin-bottom: 10px; }
+    .bar-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 5px;
+      color: var(--soil);
+    }
+    .bar-label-row .pct {
+      color: var(--muted);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .bar-track {
+      background: var(--cream-dark);
+      border-radius: 5px;
+      height: 7px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.75s cubic-bezier(0.4,0,0.2,1);
+      width: 0%;
+    }
+    .bar-fill.healthy { background: var(--healthy-green); }
+    .bar-fill.early   { background: var(--blight-red); }
+    .bar-fill.late    { background: var(--blight-orange); }
+    .bar-fill.pepper  { background: #4A90D9; }
+
+    /* treatment panel */
+    .treatment-panel {
+      margin-top: 18px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .treatment-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .treatment-header:hover { background: var(--cream-dark); }
+    .treatment-header.healthy { background: #eaf6ed; color: #1e6640; }
+    .treatment-header.early   { background: #fdecea; color: #922b21; }
+    .treatment-header.late    { background: #fdf0e3; color: #7a3a12; }
+    .treatment-arrow {
+      margin-left: auto;
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    .treatment-arrow.open { transform: rotate(180deg); }
+    .treatment-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .treatment-body.open { max-height: 600px; }
+    .treatment-inner {
+      padding: 14px;
+      border-top: 1px solid var(--border);
+      font-size: 0.82rem;
+      color: var(--soil-light);
+      line-height: 1.65;
+    }
+    .treatment-inner .t-row {
+      display: flex;
+      gap: 9px;
+      margin-bottom: 9px;
+      align-items: flex-start;
+    }
+    .treatment-inner .t-row:last-child { margin-bottom: 0; }
+    .treatment-inner .t-icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
+    .treatment-inner .t-text strong { display: block; font-size: 0.8rem; color: var(--soil); margin-bottom: 2px; }
+
+    /* scan history */
+    .history-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .history-section .section-title { margin-bottom: 10px; }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 11px;
+      border-radius: 9px;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.78rem;
+    }
+    .history-item:hover { background: var(--cream-dark); }
+    .history-thumb {
+      width: 32px; height: 32px;
+      border-radius: 7px;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .history-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .history-dot.healthy { background: var(--healthy-green); }
+    .history-dot.early   { background: var(--blight-red); }
+    .history-dot.late    { background: var(--blight-orange); }
+    .history-dot.pepper  { background: #4A90D9; }
+    .history-info { flex: 1; min-width: 0; }
+    .history-name { font-weight: 500; color: var(--soil); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-conf { color: var(--muted); }
+    .history-time { color: var(--muted); font-size: 0.73rem; white-space: nowrap; }
+    .clear-history-btn {
+      font-size: 0.73rem;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 5px;
+      transition: color 0.15s;
+    }
+    .clear-history-btn:hover { color: var(--blight-red); }
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 18px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--leaf); text-decoration: none; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 660px) {
+      main { grid-template-columns: 1fr; padding: 20px 16px 48px; }
+      .hero { padding: 40px 20px 36px; }
+      .hero h2 { font-size: 2rem; }
+      header { padding: 0 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">🌿</div>
+    <span class="logo-name">PlantScan</span>
+    <span class="header-tag">Beta</span>
+  </div>
+  <div class="header-right">
+    <div class="api-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">🔬 AI Leaf Analysis</div>
+    <h2>Detect <em>potato disease</em><br>from a single photo</h2>
+    <p class="hero-sub">Upload a leaf image and get an instant AI-powered diagnosis with treatment recommendations.</p>
+    <div class="hero-pills">
+      <span class="pill pill-healthy">🟢 Healthy</span>
+      <span class="pill pill-early">🔴 Early Blight</span>
+      <span class="pill pill-late">🟠 Late Blight</span>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <div class="card-label">Upload Leaf Image</div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="image/*" />
+      <span class="drop-icon">🍃</span>
+      <p><strong>Click to upload</strong> or drag &amp; drop<br>JPG · PNG · WEBP supported</p>
+    </div>
+
+    <div class="preview-wrap" id="previewWrap">
+      <img id="previewImg" src="" alt="Preview" />
+      <div class="preview-overlay">
+        <span class="preview-name" id="previewName"></span>
+        <button class="remove-btn" id="removeBtn" title="Remove image">✕</button>
+      </div>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <button class="predict-btn" id="predictBtn" disabled>
+      <div class="spinner" id="spinner"></div>
+      <span id="btnText">Analyse Leaf</span>
+    </button>
+
+    <div class="tips">
+      <div class="tip"><span class="tip-icon">💡</span><span>Use clear, well-lit photos of individual leaves for best results.</span></div>
+      <div class="tip"><span class="tip-icon">📐</span><span>Ensure the full leaf is visible with minimal background clutter.</span></div>
+    </div>
+  </div>
+
+  <!-- Result Card -->
+  <div class="card">
+    <div class="card-label">Diagnosis</div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🔬</div>
+      <p>Upload a potato leaf image<br>to see the AI diagnosis here.</p>
+    </div>
+
+    <div class="prediction-result" id="predictionResult">
+
+      <!-- header with icon + name -->
+      <div class="diag-header">
+        <div class="diag-icon" id="diagIcon"></div>
+        <div class="diag-text">
+          <div class="diag-label">Detected Condition</div>
+          <div class="diag-name" id="diagName"></div>
+        </div>
+      </div>
+
+      <!-- confidence number + bar -->
+      <div class="conf-row">
+        <div class="conf-number" id="confNumber">—<sup>%</sup></div>
+        <div class="conf-label">model confidence</div>
+      </div>
+      <div class="conf-track">
+        <div class="conf-fill" id="confFill"></div>
+      </div>
+
+      <!-- all class bars -->
+      <div class="section-title">All class probabilities</div>
+
+      <div class="bar-row">
+        <div class="bar-label-row">
+          <span>Pepper Bell — Healthy</span>
+          <span class="pct" id="pct0">0.0%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill pepper" id="bar0"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label-row">
+          <span>Potato — Early Blight</span>
+          <span class="pct" id="pct1">0.0%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill early" id="bar1"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label-row">
+          <span>Potato — Late Blight</span>
+          <span class="pct" id="pct2">0.0%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill late" id="bar2"></div></div>
+      </div>
+
+      <!-- treatment accordion -->
+      <div class="treatment-panel">
+        <div class="treatment-header" id="treatmentHeader">
+          <span id="treatmentHeaderIcon"></span>
+          <span id="treatmentHeaderText">What this means &amp; treatment</span>
+          <span class="treatment-arrow" id="treatmentArrow">▼</span>
+        </div>
+        <div class="treatment-body" id="treatmentBody">
+          <div class="treatment-inner" id="treatmentInner"></div>
+        </div>
+      </div>
+
+      <!-- scan history -->
+      <div class="history-section" id="historySection" style="display:none">
+        <div class="history-header">
+          <div class="section-title" style="margin:0">Recent Scans</div>
+          <button class="clear-history-btn" id="clearHistoryBtn">Clear</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  PlantScan &mdash; Powered by TensorFlow &amp; FastAPI &nbsp;·&nbsp; <a href="#">Educational use only</a>
+</footer>
+
+<script>
+  const API_URL    = 'http://localhost:8000';
+  const fileInput  = document.getElementById('fileInput');
+  const dropZone   = document.getElementById('dropZone');
+  const previewWrap= document.getElementById('previewWrap');
+  const previewImg = document.getElementById('previewImg');
+  const previewName= document.getElementById('previewName');
+  const removeBtn  = document.getElementById('removeBtn');
+  const predictBtn = document.getElementById('predictBtn');
+  const spinner    = document.getElementById('spinner');
+  const btnText    = document.getElementById('btnText');
+  const errorBox   = document.getElementById('errorBox');
+
+  const emptyState       = document.getElementById('emptyState');
+  const predictionResult = document.getElementById('predictionResult');
+  const diagIcon         = document.getElementById('diagIcon');
+  const diagName         = document.getElementById('diagName');
+  const confNumber       = document.getElementById('confNumber');
+  const confFill         = document.getElementById('confFill');
+
+  const treatmentHeader  = document.getElementById('treatmentHeader');
+  const treatmentHeaderIcon = document.getElementById('treatmentHeaderIcon');
+  const treatmentBody    = document.getElementById('treatmentBody');
+  const treatmentInner   = document.getElementById('treatmentInner');
+  const treatmentArrow   = document.getElementById('treatmentArrow');
+
+  const statusDot  = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const historySection = document.getElementById('historySection');
+  const historyList    = document.getElementById('historyList');
+  const clearHistoryBtn= document.getElementById('clearHistoryBtn');
+
+  const CLASS_KEYS = [
+    'Potato___Early_blight',
+    'Potato___healthy',
+    'Potato___Late_blight'
+  ];
+
+  const CLASS_META = {
+    'Potato___Early_blight': {
+      label: 'Potato___Early_blight',
+      badgeClass: 'early',
+      icon: '🫑',
+      headerClass: 'early',
+      treatment: [
+        { icon: '🔴', title: 'Cause', text: 'Alternaria solani fungus. Appears as dark brown spots with concentric rings (target-like pattern).' },
+        { icon: '🌿', title: 'Remove infected leaves', text: 'Prune and dispose of affected leaves immediately. Do not compost them.' },
+        { icon: '🧪', title: 'Fungicide treatment', text: 'Apply copper-based or chlorothalonil fungicide every 7–10 days. Begin at first sign of symptoms.' },
+        { icon: '💦', title: 'Watering tips', text: 'Water at the base only. Wet foliage promotes fungal growth — avoid overhead irrigation.' },
+        { icon: '🌬️', title: 'Air circulation', text: 'Ensure adequate spacing between plants for airflow. Avoid dense planting.' }
+      ]
+    },
+    'Potato___healthy': {
+      label: 'Potato___healthy',
+      badgeClass: 'healthy',
+      icon: '🍂',
+      headerClass: 'healthy',
+      treatment: [
+        { icon: '✅', title: 'No action needed', text: 'This pepper leaf appears healthy. No disease symptoms detected.' },
+        { icon: '💧', title: 'Routine care', text: 'Continue regular watering, avoid waterlogging, and ensure good drainage.' },
+        { icon: '👁', title: 'Stay vigilant', text: 'Inspect leaves weekly. Early disease detection leads to better outcomes.' }
+      ]
+    },
+    'Potato___Late_blight': {
+      label: 'Potato___Late_blight',
+      badgeClass: 'late',
+      icon: '🟤',
+      headerClass: 'late',
+      treatment: [
+        { icon: '🚨', title: 'Urgent action required', text: 'Phytophthora infestans. Highly destructive — can devastate a field within days in wet conditions.' },
+        { icon: '🔇', title: 'Isolate immediately', text: 'Move infected plants away from healthy ones at once to prevent spread.' },
+        { icon: '🧪', title: 'Fungicide treatment', text: 'Apply mancozeb or metalaxyl-based systemic fungicides. Preventive application is more effective than curative.' },
+        { icon: '🌡', title: 'Monitor conditions', text: 'High humidity and cool temperatures (10–25°C) favour spread. Extra vigilance during such periods.' },
+        { icon: '🗑', title: 'Destroy crop debris', text: 'Remove and burn severely infected plants. Do not leave debris in the field — spores overwinter in soil.' }
+      ]
+    }
+  };
+
+  let selectedFile = null;
+  let scanHistory  = [];
+  let currentImageDataURL = null;
+
+  // ── API health check ──────────────────────────────────────────────
+  async function checkApiStatus() {
+    try {
+      const res = await fetch(API_URL + '/ping', { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        statusDot.className  = 'status-dot online';
+        statusText.textContent = 'API online';
+      } else { throw new Error(); }
+    } catch {
+      statusDot.className  = 'status-dot offline';
+      statusText.textContent = 'API offline';
+    }
+  }
+  checkApiStatus();
+  setInterval(checkApiStatus, 15000);
+
+  // ── File handling ─────────────────────────────────────────────────
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  removeBtn.addEventListener('click', resetUpload);
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      showError('Please upload a valid image file (JPG, PNG, WEBP).');
+      return;
+    }
+    selectedFile = file;
+    hideError();
+    resetResult();
+    const reader = new FileReader();
+    reader.onload = e => {
+      currentImageDataURL = e.target.result;
+      previewImg.src = e.target.result;
+      previewWrap.style.display = 'block';
+      previewName.textContent   = file.name;
+    };
+    reader.readAsDataURL(file);
+    predictBtn.disabled = false;
+  }
+
+  function resetUpload() {
+    selectedFile = null;
+    currentImageDataURL = null;
+    fileInput.value = '';
+    previewImg.src = '';
+    previewWrap.style.display = 'none';
+    predictBtn.disabled = true;
+    hideError();
+    resetResult();
+  }
+
+  // ── Predict ───────────────────────────────────────────────────────
+  predictBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    setLoading(true);
+    hideError();
+    resetResult();
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await fetch(API_URL + '/predict', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error (${res.status})`);
+      }
+      const data = await res.json();
+      showResult(data);
+      addToHistory(data);
+    } catch (err) {
+      if (err.name === 'TypeError' || err.message.toLowerCase().includes('fetch')) {
+        showError('Cannot reach the server. Make sure your FastAPI backend is running on localhost:8000.');
+      } else {
+        showError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ── Render result ─────────────────────────────────────────────────
+  function showResult(data) {
+    const meta   = CLASS_META[data.class] || CLASS_META['Potato___healthy'];
+    const scores = data.predictions;
+
+    emptyState.style.display      = 'none';
+    predictionResult.style.display = 'block';
+
+    // diagnosis header
+    diagIcon.textContent  = meta.icon;
+    diagIcon.className    = `diag-icon ${meta.headerClass}`;
+    diagName.textContent  = meta.label;
+
+    // confidence
+    const conf = typeof data.confidence === 'number' ? data.confidence : parseFloat(data.confidence);
+    confNumber.innerHTML  = `${conf.toFixed(1)}<sup>%</sup>`;
+    confFill.className    = `conf-fill ${meta.badgeClass}`;
+    setTimeout(() => { confFill.style.width = Math.min(conf, 100) + '%'; }, 60);
+
+    // all-class bars
+    CLASS_KEYS.forEach((key, i) => {
+      const rawScore = scores[key] != null ? scores[key] : 0;
+      // rawScore is a probability 0–1 from backend; multiply by 100 for display
+      const pct = (rawScore * 100).toFixed(1);
+      document.getElementById(`pct${i}`).textContent = pct + '%';
+      setTimeout(() => {
+        document.getElementById(`bar${i}`).style.width = pct + '%';
+      }, 80 + i * 40);
+    });
+
+    // treatment accordion
+    const headerEl = document.getElementById('treatmentHeader');
+    headerEl.className = `treatment-header ${meta.headerClass}`;
+    treatmentHeaderIcon.textContent = meta.icon;
+
+    treatmentInner.innerHTML = meta.treatment.map(t => `
+      <div class="t-row">
+        <span class="t-icon">${t.icon}</span>
+        <div class="t-text">
+          <strong>${t.title}</strong>
+          ${t.text}
+        </div>
+      </div>
+    `).join('');
+
+    // auto-open treatment for diseases
+    if (meta.badgeClass !== 'pepper') {
+      treatmentBody.classList.add('open');
+      treatmentArrow.classList.add('open');
+    } else {
+      treatmentBody.classList.remove('open');
+      treatmentArrow.classList.remove('open');
+    }
+
+    // render history
+    renderHistory();
+  }
+
+  // ── Treatment accordion toggle ────────────────────────────────────
+  treatmentHeader.addEventListener('click', () => {
+    treatmentBody.classList.toggle('open');
+    treatmentArrow.classList.toggle('open');
+  });
+
+  // ── Scan history ──────────────────────────────────────────────────
+  function addToHistory(data) {
+    const meta = CLASS_META[data.class] || CLASS_META['Potato___healthy'];
+    scanHistory.unshift({
+      label: meta.label,
+      badgeClass: meta.badgeClass,
+      confidence: data.confidence,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      thumb: currentImageDataURL,
+      data
+    });
+    if (scanHistory.length > 5) scanHistory.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (scanHistory.length === 0) {
+      historySection.style.display = 'none';
+      return;
+    }
+    historySection.style.display = 'block';
+    historyList.innerHTML = scanHistory.map((item, idx) => `
+      <div class="history-item" data-idx="${idx}">
+        ${item.thumb ? `<img class="history-thumb" src="${item.thumb}" alt="scan" />` : ''}
+        <div class="history-dot ${item.badgeClass}"></div>
+        <div class="history-info">
+          <div class="history-name">${item.label}</div>
+          <div class="history-conf">${item.confidence.toFixed(1)}% confidence</div>
+        </div>
+        <div class="history-time">${item.time}</div>
+      </div>
+    `).join('');
+
+    // clicking a history item re-shows its result
+    historyList.querySelectorAll('.history-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx);
+        showResult(scanHistory[idx].data);
+      });
+    });
+  }
+
+  clearHistoryBtn.addEventListener('click', () => {
+    scanHistory = [];
+    historySection.style.display = 'none';
+  });
+
+  function resetResult() {
+    emptyState.style.display       = 'block';
+    predictionResult.style.display = 'none';
+    confFill.style.width = '0%';
+    CLASS_KEYS.forEach((_, i) => {
+      document.getElementById(`bar${i}`).style.width = '0%';
+      document.getElementById(`pct${i}`).textContent = '0.0%';
+    });
+  }
+
+  function setLoading(on) {
+    predictBtn.disabled = on;
+    spinner.style.display = on ? 'block' : 'none';
+    btnText.textContent   = on ? 'Analysing…' : 'Analyse Leaf';
+  }
+
+  function showError(msg) {
+    errorBox.innerHTML = `<strong>⚠ Error:</strong> ${msg}`;
+    errorBox.style.display = 'block';
+  }
+  function hideError() { errorBox.style.display = 'none'; }
+</script>
+</body>
+</html>
