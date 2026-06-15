@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: plantscan-frontend
+    env: static
+    rootDir: frontend
+    staticPublishPath: .
