@@ -1,18 +1,17 @@
-from langchain_groq import ChatGroq
+from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from chat.memory import get_or_create_memory
-import os
 
-def get_llm(model: str = "llama3-8b-8192") -> ChatGroq:
-    return ChatGroq(
+def get_llm(model: str = "llama3.2") -> OllamaLLM:
+    return OllamaLLM(
         model=model,
-        api_key=os.environ.get("GROQ_API_KEY", ""),
+        base_url="http://localhost:11434",
         temperature=0.7,
-        max_tokens=512,
+        num_predict=512,
     )
 
-def build_chain(session_id: str, model: str = "llama3-8b-8192") -> RunnableWithMessageHistory:
+def build_chain(session_id: str, model: str = "llama3.2") -> RunnableWithMessageHistory:
     llm = get_llm(model)
 
     prompt = ChatPromptTemplate.from_messages([

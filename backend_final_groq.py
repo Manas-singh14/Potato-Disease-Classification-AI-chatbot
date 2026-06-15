@@ -145,6 +145,8 @@ async def chat(req: ChatRequest):
     #     except Exception as e:
     #         error_msg = f"Error: {str(e)}"
     #         yield f"data: {json.dumps({'token': error_msg, 'done': True})}\n\n"
+
+     # using this code function for streaming
     async def token_stream():
             try:
                 full_reply = ""

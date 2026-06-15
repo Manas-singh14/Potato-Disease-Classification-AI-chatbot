@@ -1,0 +1,11 @@
+venv/
+.env
+__pycache__/
+*.pyc
+*.ipynb
+.git/
+PlantVillage/
+backend_final.py
+backend_new.py
+index_new_final.html
+index_new.html
